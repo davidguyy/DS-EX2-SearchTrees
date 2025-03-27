@@ -1,4 +1,4 @@
-// by 11227205 ¸ê°T¤G¤A ¼B¦Ü¹Å
+// by 11227205 è³‡è¨ŠäºŒä¹™ åŠ‰è‡³å˜‰
 #include <algorithm>  // std::for_each(), std::any_of()
 #include <cassert>    // debugging
 #include <cstddef>
