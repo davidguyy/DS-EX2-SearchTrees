@@ -1,0 +1,295 @@
+// by 11227205 資訊二乙 劉至嘉
+#include <algorithm>  // std::for_each(), std::any_of()
+#include <cassert>    // debugging
+#include <cstddef>
+#include <expected>
+#include <fstream>  // file io
+#include <iostream>
+#include <print>
+#include <ranges>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace ex2 {
+
+// inspired (copied) from absl::StatusCode
+// go to https://abseil.io/docs/cpp/guides/status-codes for documentation
+enum struct StatusCode : int {
+  kOk = 0,
+  kCancelled = 1,
+  kUnknown = 2,
+  kInvalidArgument = 3,
+  kDeadlineExceeded = 4,
+  kNotFound = 5,
+  kAlreadyExists = 6,
+  kPermissionDenied = 7,
+  kResourceExhausted = 8,
+  kFailedPrecondition = 9,
+  kAborted = 10,
+  kOutOfRange = 11,
+  kUnimplemented = 12,
+  kInternal = 13,
+  kUnavailable = 14,
+  kDataLoss = 15,
+  kUnauthenticated = 16,
+};
+
+constexpr std::string_view kInputPrefix = "input";
+constexpr std::string_view kInputSuffix = ".txt";
+constexpr std::string_view kCancelString = "input0.txt";
+
+constexpr std::string_view kPrompt =
+    "*** Search Tree Utilities **\n"
+    "* 0. QUIT                  *\n"
+    "* 1. Build 2-3 tree        *\n"
+    "* 2. Build AVL tree        *\n"
+    "*************************************\n"
+    "Input a choice(0, 1, 2): ";
+
+namespace utils {
+
+std::vector<std::string_view> Split(const std::string_view string,
+                                    const std::string_view delimiter) {
+  std::vector<std::string_view> tokens;
+  for (auto&& token : std::views::split(string, delimiter)) {
+    tokens.push_back(static_cast<std::string_view>(token));
+  }
+  return tokens;
+}
+
+void EraseCommaAndQuotation(std::string& s) {
+  for (auto it = s.begin(); it != s.end(); ++it) {
+    if (*it == ',' || *it == '\"') {
+      s.erase(it);
+    }
+  }
+}
+
+/// @return returns 0 if the scanned input cannot be converted to int
+int ScanInterger() {
+  int input;
+  std::cin >> input;
+  if (std::cin.fail()) {
+    return 0;  // terminates the program
+  }
+  return input;
+}
+
+std::string ScanFileName(const std::string_view prefix,
+                         const std::string_view suffix) {
+  std::print("\nInput a file number ([0] Quit): ");
+  std::string file_name;
+  std::cin >> file_name;
+
+  file_name.insert(0, prefix);
+  file_name.append(suffix);
+  return file_name;
+}
+
+}  // namespace utils
+
+namespace graduate {
+
+struct Info {
+  std::string school_name;
+  std::string department_name;
+  std::string day_or_night_type;
+  std::string level;
+  int serial_number = 0;
+  int student_amount = 0;
+};
+
+std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
+    const std::string& file_name) {
+  std::ifstream file(file_name);
+
+  if (!file.is_open()) {
+    return std::unexpected{ex2::StatusCode::kNotFound};
+  }
+
+  auto skip_first_x_lines = [](std::istream& in, const size_t x) {
+    for (size_t i = 0; i < x; i++) {
+      in.ignore(10000, '\n');
+    }
+  };
+
+  skip_first_x_lines(file, 3);
+
+  std::string line;
+  std::vector<Info> data;
+  constexpr std::string_view kDelimiter = "\t";
+  int serial_number = 0;
+
+  auto make_info =
+      [&serial_number](const std::vector<std::string_view>& tokens) -> Info {
+    enum TokensTable : size_t {
+      kSchoolId = 0,
+      kSchoolName,
+      kDepartmentId,
+      kDepartmentName,
+      kDayOrNightType,
+      kLevel,
+      kStudentAmount,
+      kTeacherAmount,
+      kGraduateAmount,
+      kCityName,
+      kSchoolType
+    };
+
+    ++serial_number;
+
+    return Info{.school_name = std::string{tokens[kSchoolName]},
+                .department_name = std::string{tokens[kDepartmentName]},
+                .day_or_night_type = std::string{tokens[kDayOrNightType]},
+                .level = std::string{tokens[kLevel]},
+                .serial_number = serial_number,
+                .student_amount = atoi(tokens[kStudentAmount].data())};
+  };
+
+  while (std::getline(file, line)) {
+    data.push_back(make_info(utils::Split(line, kDelimiter)));
+  }
+
+  if (data.empty()) [[unlikely]] {
+    return std::unexpected{ex2::StatusCode::kFailedPrecondition};
+  }
+
+  return data;
+}
+
+class AvlTree {
+ public:
+  struct Node {
+    int data;
+    std::string key;
+    Node* left = nullptr;
+    Node* right = nullptr;
+
+    bool operator>(const Node& other) const { return key > other.key; }
+
+    bool operator<(const Node& other) const { return key < other.key; }
+  };
+  using NodePointer = Node*;
+
+  [[nodiscard]] NodePointer MakeNode(const int data, const std::string& key) {
+    return new Node{data, key};
+  }
+
+  AvlTree(const AvlTree&) = delete;
+  AvlTree& operator=(const AvlTree&) = delete;
+
+  AvlTree(AvlTree&& other) noexcept : root_{other.root_} {
+    other.root_ = nullptr;
+  }
+  AvlTree& operator=(AvlTree&& other) noexcept {
+    Clear(root_);
+    root_ = other.root_;
+    other.root_ = nullptr;
+    return *this;
+  }
+
+  ~AvlTree() noexcept { Clear(root_); }
+
+  void Clear() noexcept { Clear(root_); }
+
+  void Insert(const Info& val) {
+    if (!root_) [[unlikely]] {
+      root_ = MakeNode(val.serial_number, val.department_name);
+      return;
+    }
+  }
+
+  int GetHeight() const { return 0; }
+
+  const int GetTop() const { return 0; }
+
+ private:
+  void Clear(NodePointer& ptr) noexcept {
+    if (ptr) {
+      Clear(ptr->left);
+      Clear(ptr->right);
+      delete ptr;
+      ptr = nullptr;
+    }
+  }
+
+  NodePointer root_ = nullptr;
+};
+
+}  // namespace graduate
+
+class SearchTreeUtility {
+ public:
+  StatusCode ExecuteCommand(const int command) {
+    switch (command) {
+      case 0: {
+        return StatusCode::kCancelled;
+      }
+      case 1: {
+        auto file_name = utils::ScanFileName(kInputPrefix, kInputSuffix);
+        auto result = LoadFile(file_name);
+
+        auto not_ok_and_not_cancelled = [](const StatusCode s) -> bool {
+          return (s != StatusCode::kOk && s != StatusCode::kCancelled);
+        };
+
+        while (not_ok_and_not_cancelled(result)) {
+          std::print("\n### {} does not exist! ###\n\n", file_name);
+
+          file_name = utils::ScanFileName(kInputPrefix, kInputSuffix);
+          result = LoadFile(file_name);
+        }
+        break;
+      }
+      case 2: {
+        if (!list_.empty()) {
+          MakeAvlTree();
+        } else {
+          std::print("### Choose 1 first. ###\n\n");
+        }
+        break;
+      }
+      default: {
+        return StatusCode::kUnimplemented;
+        std::print("Command does not exist!\n\n");
+      }
+    }
+    return StatusCode::kOk;
+  }
+
+ private:
+  StatusCode LoadFile(const std::string& file_name) {
+    if (file_name == kCancelString) {
+      return StatusCode::kCancelled;
+    }
+
+    if (auto list = graduate::MakeList(file_name); list.has_value()) {
+      list_ = list.value();
+    } else [[unlikely]] {
+      return StatusCode::kFailedPrecondition;
+    }
+    return StatusCode::kOk;
+  }
+
+  // TODO: implement trees
+  void MakeTwoThreeTree() {}
+  void MakeAvlTree() {}
+
+ private:
+  std::vector<graduate::Info> list_;
+};
+
+}  // namespace ex2
+
+int main() {
+  using namespace ex2;
+
+  SearchTreeUtility search_utility;
+  // TODO: change from scan integer to getline
+  for (StatusCode status = StatusCode::kUnknown;
+       status != StatusCode::kCancelled;
+       status = search_utility.ExecuteCommand(utils::ScanInterger())) {
+    std::print(kPrompt);
+  }
+}
