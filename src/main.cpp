@@ -3,9 +3,14 @@
 #include <cassert>    // debugging
 #include <cstddef>
 #include <expected>
+#include <format>
 #include <fstream>  // file io
 #include <iostream>
-#include <print>
+
+// DC doesn't support it as of 2025/3/28 :(
+// #include <print>
+
+#include <charconv>
 #include <ranges>
 #include <string>
 #include <string_view>
@@ -78,7 +83,7 @@ int ScanInterger() {
 
 std::string ScanFileName(const std::string_view prefix,
                          const std::string_view suffix) {
-  std::print("\nInput a file number ([0] Quit): ");
+  std::cout << std::format("\nInput a file number ([0] Quit): ");
   std::string file_name;
   std::cin >> file_name;
 
@@ -139,12 +144,18 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
 
     ++serial_number;
 
+    auto string_view_to_int = [](std::string_view str) -> int {
+      int result = 0;
+      std::from_chars(str.data(), str.data() + str.size(), result);
+      return result;
+    };
+
     return Info{.school_name = std::string{tokens[kSchoolName]},
                 .department_name = std::string{tokens[kDepartmentName]},
                 .day_or_night_type = std::string{tokens[kDayOrNightType]},
                 .level = std::string{tokens[kLevel]},
                 .serial_number = serial_number,
-                .student_amount = atoi(tokens[kStudentAmount].data())};
+                .student_amount = string_view_to_int(tokens[kStudentAmount])};
   };
 
   while (std::getline(file, line)) {
@@ -235,7 +246,8 @@ class SearchTreeUtility {
         };
 
         while (not_ok_and_not_cancelled(result)) {
-          std::print("\n### {} does not exist! ###\n\n", file_name);
+          std::cout << std::format("\n### {} does not exist! ###\n\n",
+                                   file_name);
 
           file_name = utils::ScanFileName(kInputPrefix, kInputSuffix);
           result = LoadFile(file_name);
@@ -246,13 +258,13 @@ class SearchTreeUtility {
         if (!list_.empty()) {
           MakeAvlTree();
         } else {
-          std::print("### Choose 1 first. ###\n\n");
+          std::cout << std::format("### Choose 1 first. ###\n\n");
         }
         break;
       }
       default: {
         return StatusCode::kUnimplemented;
-        std::print("Command does not exist!\n\n");
+        std::cout << std::format("Command does not exist!\n\n");
       }
     }
     return StatusCode::kOk;
@@ -290,6 +302,6 @@ int main() {
   for (StatusCode status = StatusCode::kUnknown;
        status != StatusCode::kCancelled;
        status = search_utility.ExecuteCommand(utils::ScanInterger())) {
-    std::print(kPrompt);
+    std::cout << std::format(kPrompt);
   }
 }
