@@ -161,7 +161,7 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
 class AvlTree {
  public:
   struct Node {
-    int data;
+    std::vector<int> data;
     std::string key;
     Node* left = nullptr;
     Node* right = nullptr;
@@ -173,7 +173,7 @@ class AvlTree {
   using NodePointer = Node*;
 
   [[nodiscard]] NodePointer MakeNode(const int data, const std::string& key) {
-    return new Node{data, key};
+    return new Node{{data}, key};
   }
 
   AvlTree(const AvlTree&) = delete;
@@ -205,12 +205,12 @@ class AvlTree {
   const int GetTop() const { return 0; }
 
  private:
-  void Clear(NodePointer& ptr) noexcept {
-    if (ptr) {
-      Clear(ptr->left);
-      Clear(ptr->right);
-      delete ptr;
-      ptr = nullptr;
+  void Clear(NodePointer& current) noexcept {
+    if (current) {
+      Clear(current->left);
+      Clear(current->right);
+      delete current;
+      current = nullptr;
     }
   }
 
