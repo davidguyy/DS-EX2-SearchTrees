@@ -8,3 +8,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 file(GLOB DS_EX2_SOURCE_FILES src/*.cpp src/*.hpp)
 
 add_executable(${PROJECT_NAME} ${DS_EX2_SOURCE_FILES})
+
+if(WIN32)
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_link_libraries(${PROJECT_NAME} PRIVATE "-lstdc++exp")
+  endif(NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+endif(WIN32)
