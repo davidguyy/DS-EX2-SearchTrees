@@ -1,4 +1,4 @@
-// by 11227205 資訊二乙 劉至嘉
+// by 11227205 資訊二乙 劉至嘉 & 11027214 楊碕萍.
 #include <algorithm>  // std::for_each(), std::any_of()
 #include <cassert>    // debugging
 #include <cstddef>
