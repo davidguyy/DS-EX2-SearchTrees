@@ -1,10 +1,10 @@
 // by 11227205 資訊二乙 劉至嘉 & 11027214 楊碕萍.
-#include <algorithm>  // std::for_each(), std::any_of()
-#include <cassert>    // debugging
+#include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <expected>
 #include <format>
-#include <fstream>  // file io
+#include <fstream>
 #include <iostream>
 
 // DC doesn't support it as of 2025/3/28 :(
@@ -176,6 +176,7 @@ class AvlTree {
     std::string key;
     Node* left = nullptr;
     Node* right = nullptr;
+    int height = 0;
 
     bool operator>(const Node& other) const { return key > other.key; }
 
@@ -186,6 +187,8 @@ class AvlTree {
   [[nodiscard]] NodePointer MakeNode(const int data, const std::string& key) {
     return new Node{{data}, key};
   }
+
+  AvlTree() = default;
 
   AvlTree(const AvlTree&) = delete;
   AvlTree& operator=(const AvlTree&) = delete;
@@ -205,10 +208,42 @@ class AvlTree {
   void Clear() noexcept { Clear(root_); }
 
   void Insert(const Info& val) {
+    auto new_node = MakeNode(val.serial_number, val.department_name);
     if (!root_) [[unlikely]] {
-      root_ = MakeNode(val.serial_number, val.department_name);
+      root_ = new_node;
       return;
     }
+
+    auto current_node = root_;
+    auto parent_node = root_;
+
+    while (current_node) {
+      parent_node = current_node;
+
+      const bool current_key_is_equal =
+          (current_node->key == val.department_name);
+      if (current_key_is_equal) {
+        current_node->data.push_back(val.serial_number);
+        return;
+      }
+
+      const bool current_key_is_larger =
+          (current_node->key > val.department_name);
+      if (current_key_is_larger) {
+        current_node = current_node->left;
+      } else {
+        current_node = current_node->right;
+      }
+    }
+
+    const bool parent_key_is_larger = (parent_node->key > val.department_name);
+    if (parent_key_is_larger) {
+      parent_node->left = new_node;
+    } else {
+      parent_node->right = new_node;
+    }
+
+
   }
 
   int GetHeight() const { return 0; }
@@ -224,6 +259,14 @@ class AvlTree {
       current = nullptr;
     }
   }
+
+  // int CalculateHeight() {
+
+  // }
+
+  // void UpdateNodeHeight(NodePointer& node) {
+    
+  // }
 
   NodePointer root_ = nullptr;
 };
@@ -252,6 +295,8 @@ class SearchTreeUtility {
           file_name = utils::ScanFileName(kInputPrefix, kInputSuffix);
           result = LoadFile(file_name);
         }
+
+        MakeTwoThreeTree();
         break;
       }
       case 2: {
@@ -286,7 +331,13 @@ class SearchTreeUtility {
 
   // TODO: implement trees
   void MakeTwoThreeTree() {}
-  void MakeAvlTree() {}
+  void MakeAvlTree() {
+    graduate::AvlTree tree;
+
+    auto insert = [&tree](const graduate::Info& val) { tree.Insert(val); };
+
+    std::ranges::for_each(list_, insert);
+  }
 
  private:
   std::vector<graduate::Info> list_;
