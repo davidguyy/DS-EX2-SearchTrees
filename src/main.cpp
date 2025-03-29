@@ -113,19 +113,16 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
     return std::unexpected{ex2::StatusCode::kNotFound};
   }
 
-  auto skip_first_x_lines = [](std::istream& in, const size_t x) {
-    for (size_t i = 0; i < x; i++) {
+  auto skip_first_x_lines = [](std::istream& in, const int x) {
+    assert(x > 0);
+    for (int i = 0; i < x; i++) {
       in.ignore(10000, '\n');
     }
   };
 
   skip_first_x_lines(file, 3);
 
-  std::string line;
-  std::vector<Info> data;
-  constexpr std::string_view kDelimiter = "\t";
   int serial_number = 0;
-
   auto make_info =
       [&serial_number](const std::vector<std::string_view>& tokens) -> Info {
     enum TokensTable : size_t {
@@ -158,6 +155,9 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
                 .student_amount = string_view_to_int(tokens[kStudentAmount])};
   };
 
+  std::string line;
+  std::vector<Info> data;
+  constexpr std::string_view kDelimiter = "\t";
   while (std::getline(file, line)) {
     data.push_back(make_info(utils::Split(line, kDelimiter)));
   }
@@ -176,7 +176,7 @@ class AvlTree {
     std::string key;
     Node* left = nullptr;
     Node* right = nullptr;
-    int height = 0;
+    int height = 1;
 
     bool operator>(const Node& other) const { return key > other.key; }
 
@@ -207,6 +207,45 @@ class AvlTree {
 
   void Clear() noexcept { Clear(root_); }
 
+  void insert(const Info& val) { insert(root_, val); }
+  void insert(NodePointer& node, const Info& val) {
+    const auto& key = val.department_name;
+
+    if (!node) {
+      node = MakeNode(val.serial_number, key);
+      return;
+    }
+
+    if (key < node->key) {
+      insert(node->left, val);
+    } else if (key > node->key) {
+      insert(node->right, val);
+    } else {
+      node->data.push_back(val.serial_number);
+      return;
+    }
+
+    node->height = GetHeight(node);
+
+    const int balance = GetBalanceFactor(node);
+
+    if (balance > 1) {
+      if (key < node->left->key) {
+        RightRotate(node);
+      } else if (key > node->left->key) {
+        LeftRotate(node->left);
+        RightRotate(node);
+      }
+    } else if (balance < -1) {
+      if (key > node->right->key) {
+        LeftRotate(node);
+      } else if (key < node->right->key) {
+        RightRotate(node->right);
+        LeftRotate(node);
+      }
+    }
+  }
+
   void Insert(const Info& val) {
     auto new_node = MakeNode(val.serial_number, val.department_name);
     if (!root_) [[unlikely]] {
@@ -218,13 +257,14 @@ class AvlTree {
     auto parent_node = root_;
 
     while (current_node) {
+      current_node->height = GetHeight(current_node);
       parent_node = current_node;
 
       const bool current_key_is_equal =
           (current_node->key == val.department_name);
       if (current_key_is_equal) {
         current_node->data.push_back(val.serial_number);
-        return;
+        break;
       }
 
       const bool current_key_is_larger =
@@ -243,12 +283,24 @@ class AvlTree {
       parent_node->right = new_node;
     }
 
+    parent_node->height = GetHeight(parent_node);
 
+    const int balance_factor = GetBalanceFactor(parent_node);
+
+    if (balance_factor > 1 && new_node->key < parent_node->left->key) {
+      RightRotate(parent_node);
+    } else if (balance_factor > 1 && new_node->key > parent_node->left->key) {
+      LeftRotate(parent_node->left);
+      RightRotate(parent_node);
+    } else if (balance_factor < -1 && new_node->key < parent_node->left->key) {
+      RightRotate(parent_node->right);
+      LeftRotate(parent_node);
+    } else if (balance_factor < -1 && new_node->key > parent_node->left->key) {
+      LeftRotate(parent_node);
+    }
   }
 
-  int GetHeight() const { return 0; }
-
-  const int GetTop() const { return 0; }
+  const std::vector<int> GetRoot() const { return root_->data; }
 
  private:
   void Clear(NodePointer& current) noexcept {
@@ -260,13 +312,55 @@ class AvlTree {
     }
   }
 
-  // int CalculateHeight() {
+  static int GetHeight(const NodePointer ptr) {
+    if (!ptr) {
+      return 0;
+    }
 
-  // }
+    auto get_height_with_check = [](const NodePointer ptr) -> int {
+      if (!ptr) {
+        return 0;
+      }
+      return ptr->height;
+    };
 
-  // void UpdateNodeHeight(NodePointer& node) {
-    
-  // }
+    return std::max(get_height_with_check(ptr->left),
+                    get_height_with_check(ptr->right)) +
+           1;
+  }
+
+  static void LeftRotate(NodePointer& ptr) {
+    NodePointer right = ptr->right;
+    NodePointer right_left = right->left;
+
+    right->left = ptr;
+    ptr->right = right_left;
+
+    ptr->height = GetHeight(ptr);
+    right->height = GetHeight(right);
+
+    ptr = right;
+  }
+
+  static void RightRotate(NodePointer& ptr) {
+    NodePointer left = ptr->left;
+    NodePointer left_right = left->right;
+
+    left->right = ptr;
+    ptr->left = left_right;
+
+    ptr->height = GetHeight(ptr);
+    left->height = GetHeight(left);
+
+    ptr = left;
+  }
+
+  static int GetBalanceFactor(const NodePointer ptr) {
+    if (!ptr) {
+      return 0;
+    }
+    return GetHeight(ptr->left) - GetHeight(ptr->right);
+  }
 
   NodePointer root_ = nullptr;
 };
@@ -281,6 +375,7 @@ class SearchTreeUtility {
         return StatusCode::kCancelled;
       }
       case 1: {
+        list_.clear();
         auto file_name = utils::ScanFileName(kInputPrefix, kInputSuffix);
         auto result = LoadFile(file_name);
 
@@ -334,9 +429,23 @@ class SearchTreeUtility {
   void MakeAvlTree() {
     graduate::AvlTree tree;
 
-    auto insert = [&tree](const graduate::Info& val) { tree.Insert(val); };
+    auto insert = [&tree](const graduate::Info& val) { tree.insert(val); };
 
     std::ranges::for_each(list_, insert);
+
+    auto root_data = tree.GetRoot();
+    PrintResults(root_data);
+  }
+
+  void PrintResults(const std::vector<int>& range) const {
+    for (int i = 0; i < range.size(); ++i) {
+      const auto& current = list_[range[i] - 1];
+      std::cout << std::format("{}: [{}] {}, {}, {}, {}, {}\n", i + 1, range[i],
+                               current.school_name, current.department_name,
+                               current.day_or_night_type, current.level,
+                               current.student_amount);
+    }
+    std::cout << '\n';
   }
 
  private:
