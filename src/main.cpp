@@ -247,7 +247,7 @@ class AvlTree {
 
   int GetRootHeight() const { return HeightCheck(root_); }
 
-  const std::vector<int> GetRoot() const { return root_->data; }
+  const std::vector<int> GetRootData() const { return root_->data; }
 
  private:
   void Clear(NodePointer& current) noexcept {
@@ -376,7 +376,7 @@ class SearchTreeUtility {
 
     std::ranges::for_each(list_, insert);
 
-    auto root_data = tree.GetRoot();
+    auto root_data = tree.GetRootData();
 
     std::cout << std::format("Tree height = {}\n", tree.GetRootHeight());
     PrintRoot(root_data);
