@@ -225,7 +225,8 @@ class AvlTree {
       return;
     }
 
-    node->height = GetHeight(node);
+    node->height =
+        std::max(HeightCheck(node->left), HeightCheck(node->right)) + 1;
 
     const int balance = GetBalanceFactor(node);
 
@@ -246,60 +247,6 @@ class AvlTree {
     }
   }
 
-  void Insert(const Info& val) {
-    auto new_node = MakeNode(val.serial_number, val.department_name);
-    if (!root_) [[unlikely]] {
-      root_ = new_node;
-      return;
-    }
-
-    auto current_node = root_;
-    auto parent_node = root_;
-
-    while (current_node) {
-      current_node->height = GetHeight(current_node);
-      parent_node = current_node;
-
-      const bool current_key_is_equal =
-          (current_node->key == val.department_name);
-      if (current_key_is_equal) {
-        current_node->data.push_back(val.serial_number);
-        break;
-      }
-
-      const bool current_key_is_larger =
-          (current_node->key > val.department_name);
-      if (current_key_is_larger) {
-        current_node = current_node->left;
-      } else {
-        current_node = current_node->right;
-      }
-    }
-
-    const bool parent_key_is_larger = (parent_node->key > val.department_name);
-    if (parent_key_is_larger) {
-      parent_node->left = new_node;
-    } else {
-      parent_node->right = new_node;
-    }
-
-    parent_node->height = GetHeight(parent_node);
-
-    const int balance_factor = GetBalanceFactor(parent_node);
-
-    if (balance_factor > 1 && new_node->key < parent_node->left->key) {
-      RightRotate(parent_node);
-    } else if (balance_factor > 1 && new_node->key > parent_node->left->key) {
-      LeftRotate(parent_node->left);
-      RightRotate(parent_node);
-    } else if (balance_factor < -1 && new_node->key < parent_node->left->key) {
-      RightRotate(parent_node->right);
-      LeftRotate(parent_node);
-    } else if (balance_factor < -1 && new_node->key > parent_node->left->key) {
-      LeftRotate(parent_node);
-    }
-  }
-
   const std::vector<int> GetRoot() const { return root_->data; }
 
  private:
@@ -312,45 +259,35 @@ class AvlTree {
     }
   }
 
-  static int GetHeight(const NodePointer ptr) {
+  static int HeightCheck(const NodePointer ptr) {
     if (!ptr) {
       return 0;
     }
-
-    auto get_height_with_check = [](const NodePointer ptr) -> int {
-      if (!ptr) {
-        return 0;
-      }
-      return ptr->height;
-    };
-
-    return std::max(get_height_with_check(ptr->left),
-                    get_height_with_check(ptr->right)) +
-           1;
+    return ptr->height;
   }
 
-  static void LeftRotate(NodePointer& ptr) {
+  void LeftRotate(NodePointer& ptr) {
     NodePointer right = ptr->right;
     NodePointer right_left = right->left;
 
     right->left = ptr;
     ptr->right = right_left;
 
-    ptr->height = GetHeight(ptr);
-    right->height = GetHeight(right);
+    ptr->height = std::max(HeightCheck(ptr->left), HeightCheck(ptr->right)) + 1;
+    right->height = std::max(HeightCheck(right->left), HeightCheck(right->right)) + 1;
 
     ptr = right;
   }
 
-  static void RightRotate(NodePointer& ptr) {
+  void RightRotate(NodePointer& ptr) {
     NodePointer left = ptr->left;
     NodePointer left_right = left->right;
 
     left->right = ptr;
     ptr->left = left_right;
 
-    ptr->height = GetHeight(ptr);
-    left->height = GetHeight(left);
+    ptr->height = std::max(HeightCheck(ptr->left), HeightCheck(ptr->right)) + 1;
+    left->height = std::max(HeightCheck(left->left), HeightCheck(left->right)) + 1;
 
     ptr = left;
   }
@@ -359,7 +296,7 @@ class AvlTree {
     if (!ptr) {
       return 0;
     }
-    return GetHeight(ptr->left) - GetHeight(ptr->right);
+    return HeightCheck(ptr->left) - HeightCheck(ptr->right);
   }
 
   NodePointer root_ = nullptr;
@@ -434,10 +371,11 @@ class SearchTreeUtility {
     std::ranges::for_each(list_, insert);
 
     auto root_data = tree.GetRoot();
-    PrintResults(root_data);
+
+    PrintRoot(root_data);
   }
 
-  void PrintResults(const std::vector<int>& range) const {
+  void PrintRoot(const std::vector<int>& range) const {
     for (int i = 0; i < range.size(); ++i) {
       const auto& current = list_[range[i] - 1];
       std::cout << std::format("{}: [{}] {}, {}, {}, {}, {}\n", i + 1, range[i],
