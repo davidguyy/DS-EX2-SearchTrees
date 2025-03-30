@@ -1,4 +1,4 @@
-// by 11227205 è³‡è¨ŠäºŒä¹™ åŠ‰è‡³å˜‰ & 11027214 æ¥Šç¢•è.
+// by 11227205 è³?è¨?äº?ä¹? ?????³å?? & 11027214 æ¥?ç¢????.
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -177,10 +177,6 @@ class AvlTree {
     Node* left = nullptr;
     Node* right = nullptr;
     int height = 1;
-
-    bool operator>(const Node& other) const { return key > other.key; }
-
-    bool operator<(const Node& other) const { return key < other.key; }
   };
   using NodePointer = Node*;
 
@@ -207,22 +203,22 @@ class AvlTree {
 
   void Clear() noexcept { Clear(root_); }
 
-  void insert(const Info& val) { insert(root_, val); }
-  void insert(NodePointer& node, const Info& val) {
+  void insert(const Info& val) { root_ = insert(root_, val); }
+
+  NodePointer insert(NodePointer node, const Info& val) {
     const auto& key = val.department_name;
 
     if (!node) {
-      node = MakeNode(val.serial_number, key);
-      return;
+      return MakeNode(val.serial_number, key);
     }
 
     if (key < node->key) {
-      insert(node->left, val);
+      node->left = insert(node->left, val);
     } else if (key > node->key) {
-      insert(node->right, val);
+      node->right = insert(node->right, val);
     } else {
       node->data.push_back(val.serial_number);
-      return;
+      return node;
     }
 
     node->height =
@@ -232,19 +228,25 @@ class AvlTree {
 
     if (balance > 1) {
       if (key < node->left->key) {
-        RightRotate(node);
+        return RightRotate(node);
       } else if (key > node->left->key) {
-        LeftRotate(node->left);
-        RightRotate(node);
+        node->left = LeftRotate(node->left);
+        return RightRotate(node);
       }
     } else if (balance < -1) {
       if (key > node->right->key) {
-        LeftRotate(node);
+        return LeftRotate(node);
       } else if (key < node->right->key) {
-        RightRotate(node->right);
-        LeftRotate(node);
+        node->right = RightRotate(node->right);
+        return LeftRotate(node);
       }
     }
+    
+    return node;
+  }
+
+  int GetRootHeight() const {
+    return HeightCheck(root_);
   }
 
   const std::vector<int> GetRoot() const { return root_->data; }
@@ -266,7 +268,7 @@ class AvlTree {
     return ptr->height;
   }
 
-  void LeftRotate(NodePointer& ptr) {
+  NodePointer LeftRotate(NodePointer ptr) {
     NodePointer right = ptr->right;
     NodePointer right_left = right->left;
 
@@ -276,10 +278,10 @@ class AvlTree {
     ptr->height = std::max(HeightCheck(ptr->left), HeightCheck(ptr->right)) + 1;
     right->height = std::max(HeightCheck(right->left), HeightCheck(right->right)) + 1;
 
-    ptr = right;
+    return right;
   }
 
-  void RightRotate(NodePointer& ptr) {
+  NodePointer RightRotate(NodePointer ptr) {
     NodePointer left = ptr->left;
     NodePointer left_right = left->right;
 
@@ -289,7 +291,7 @@ class AvlTree {
     ptr->height = std::max(HeightCheck(ptr->left), HeightCheck(ptr->right)) + 1;
     left->height = std::max(HeightCheck(left->left), HeightCheck(left->right)) + 1;
 
-    ptr = left;
+    return left;
   }
 
   static int GetBalanceFactor(const NodePointer ptr) {
@@ -371,7 +373,8 @@ class SearchTreeUtility {
     std::ranges::for_each(list_, insert);
 
     auto root_data = tree.GetRoot();
-
+    
+    std::cout << std::format("Tree height = {}\n", tree.GetRootHeight());
     PrintRoot(root_data);
   }
 
