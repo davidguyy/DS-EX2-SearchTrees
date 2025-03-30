@@ -6,6 +6,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 // DC doesn't support it as of 2025/3/28 :(
 // #include <print>
@@ -59,6 +60,17 @@ std::vector<std::string_view> Split(const std::string_view string,
   std::vector<std::string_view> tokens;
   for (auto&& token : std::views::split(string, delimiter)) {
     tokens.push_back(static_cast<std::string_view>(token));
+  }
+  return tokens;
+}
+
+std::vector<std::string> Split(std::string&& line,
+                               const char delimiter) {
+  std::vector<std::string> tokens;
+  std::string token;
+  std::stringstream ss{std::move(line)};
+  while (std::getline(ss, token, delimiter)) {
+    tokens.push_back(std::move(token));
   }
   return tokens;
 }
@@ -124,7 +136,7 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
 
   int serial_number = 0;
   auto make_info =
-      [&serial_number](const std::vector<std::string_view>& tokens) -> Info {
+      [&serial_number](std::vector<std::string_view>&& tokens) -> Info {
     enum TokensTable : size_t {
       kSchoolId = 0,
       kSchoolName,
@@ -158,8 +170,10 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
   std::string line;
   std::vector<Info> data;
   constexpr std::string_view kDelimiter = "\t";
+
   while (std::getline(file, line)) {
-    data.push_back(make_info(utils::Split(line, kDelimiter)));
+    utils::EraseCommaAndQuotation(line);
+    data.push_back(make_info(utils::Split(std::move(line), '\t')));
   }
 
   if (data.empty()) [[unlikely]] {
@@ -168,6 +182,313 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
 
   return data;
 }
+
+class Dot {
+ public:
+  explicit Dot(Info info) {
+    this->info = std::move(info);
+    next = nullptr;
+  }  // Dot
+
+  ex2::graduate::Info GetDotInfo() { return info; }
+
+  void PrintSingle(int& num) {
+    std::cout << ++num << ": ";
+    std::cout << "[" << info.serial_number << "] ";
+    std::cout << info.school_name << ", ";
+    std::cout << info.department_name << ", ";
+    std::cout << info.day_or_night_type << ", ";
+    std::cout << info.level << ", ";
+    std::cout << info.student_amount;
+    std::cout << "\n";
+  }
+
+  void Print(int& num) {
+    Dot* current = this;
+    while (current->next != nullptr) {
+      current->PrintSingle(num);
+      current = current->next;
+    }
+
+    current->PrintSingle(num);
+  }
+
+  void Insert(Dot* dot) {
+    auto current = this;
+    while (current->next != nullptr) {
+      current = current->next;
+    }
+
+    current->next = dot;
+  }
+
+ private:
+  Info info;
+  Dot* next;  // record the same dot(school)
+};
+
+class Node {
+ public:
+  void Print() const {
+    int num = 0;
+    for (int i = 0; i < dots.size(); ++i) {
+      dots[i]->Print(num);
+    }
+  }
+
+  Dot* GetDotInNode(int index) {
+    if (index > dots.size()) return nullptr;
+    return dots[index];
+  }  // GetDotInNode()
+
+  void SetParent(Node* parent) { this->parent = parent; }
+
+  bool HasParent() {
+    if (parent) return true;
+    return false;
+  }  // HasParent()
+
+  Node* GetParent() { return this->parent; }
+
+  Node* GetNextNode() {
+    if (childs.size() == 0) return nullptr;
+    return childs[0];
+  }  // GetNextNode()
+
+  // return how many dots in one node
+  int GetDotSize() { return dots.size(); }  // GetDotSize()
+
+  int GetChildrenSize() { return childs.size(); }
+
+  void SortChildren() {
+    if (childs.size() == 0 || childs.size() == 1) return;
+    for (int i = 0; i < childs.size() - 1; ++i) {
+      for (int j = 0; j < childs.size() - i - 1; ++j) {
+        if (childs[j]->GetDotInNode(0)->GetDotInfo().school_name >
+            childs[j + 1]->GetDotInNode(0)->GetDotInfo().school_name) {
+          Node* temp = childs[j];
+          childs[j] = childs[j + 1];
+          childs[j + 1] = temp;
+        }  // if
+      }
+    }
+    /*
+    std::sort(dots.begin(), dots.end(), [](Dot* a, Dot* b) {
+        return a->GetDotInfo().school_name[0] <
+    b->GetDotInfo().school_name[0];
+        });
+    */
+  }
+
+  // sort dots in one node
+  void SortDot() {
+    if (dots.size() == 0 || dots.size() == 1) return;
+
+    for (int i = 0; i < dots.size() - 1; ++i) {
+      for (int j = 0; j < dots.size() - i - 1; ++j) {
+        if (dots[j]->GetDotInfo().school_name >
+            dots[j + 1]->GetDotInfo().school_name) {
+          Dot* temp = dots[j];
+          dots[j] = dots[j + 1];
+          dots[j + 1] = temp;
+        }  // if
+      }
+    }
+    /*
+    std::sort(dots.begin(), dots.end(), [](Dot* a, Dot* b) {
+        return a->GetDotInfo().school_name[0] <
+    b->GetDotInfo().school_name[0];
+        });
+    */
+  }  // SortDot()
+
+  // whether node has children or not
+  bool NodeHasChildren() {
+    if (childs.size() != 0) {
+      return true;
+    }
+    return false;
+  }  // NodeHasChildren()
+
+  void InsertChild(Node* child) { this->childs.push_back(child); }
+
+  void InsertDot(Dot* dot) {
+    for (int i = 0; i < dots.size(); ++i) {
+      if (dots[i]->GetDotInfo().school_name == dot->GetDotInfo().school_name) {
+        dots[i]->Insert(dot);
+        return;
+      }
+    }
+
+    dots.push_back(dot);
+    SortDot();
+  }  // insertDot()
+
+  Node* GetChildrenAt(int i) { return childs[i]; }
+
+  void SplitDot() {
+    /*
+     curNode:
+             dots:    [10, 20, 28]
+             childs: []
+    */
+    if (parent == nullptr) {
+      Node* sibling = new Node();
+      Node* newRoot = new Node();
+      newRoot->InsertDot(this->dots[1]);
+
+      for (int i = (this->dots.size() / 2) + 1; i < this->dots.size(); ++i) {
+        sibling->InsertDot(dots[i]);
+      }
+
+      for (int i = this->childs.size() / 2; i < this->childs.size(); ++i) {
+        sibling->InsertChild(childs[i]);
+        childs[i]->parent = sibling;
+      }
+
+      this->dots.erase(dots.begin() + (dots.size() / 2), dots.end());
+      this->childs.erase(childs.begin() + (childs.size() / 2), childs.end());
+
+      this->parent = newRoot;
+      sibling->parent = newRoot;
+
+      newRoot->InsertChild(this);
+      newRoot->InsertChild(sibling);
+      newRoot->SortDot();
+      newRoot->SortChildren();
+      sibling->SortDot();
+      sibling->SortChildren();
+      return;
+    }
+
+    else if (parent != nullptr) {
+      Node* sibling = new Node();
+      this->parent->InsertDot(dots[1]);
+      for (int i = (this->dots.size() / 2) + 1; i < this->dots.size(); ++i) {
+        sibling->InsertDot(dots[i]);
+      }
+
+      // Copy new half child to new sibling  node
+      for (int i = this->childs.size() / 2; i < this->childs.size(); ++i) {
+        sibling->InsertChild(childs[i]);
+        childs[i]->parent = sibling;
+      }
+
+      sibling->SetParent(this->parent);
+      this->parent->InsertChild(sibling);
+      // Erase the middle and the right sibling
+      this->dots.erase(dots.begin() + (dots.size() / 2), dots.end());
+      // Erase the right-half child
+      this->childs.erase(childs.begin() + (childs.size() / 2), childs.end());
+
+      this->parent->SortDot();
+      SortDot();
+      sibling->SortDot();
+
+      this->parent->SortChildren();
+      SortChildren();
+      sibling->SortChildren();
+      if (parent->GetDotSize() == 3) parent->SplitDot();
+    }
+
+  }  // SplitDot()
+
+ private:
+  std::vector<Dot*> dots;
+  Node* parent = nullptr;
+  std::vector<Node*> childs;
+};
+
+class TwoThreeTree {
+ public:
+  int GetHeight() {
+    if (root == nullptr) return 0;
+
+    Node* current = root;
+    int level = 1;
+    while (current->NodeHasChildren()) {
+      ++level;
+      current = current->GetNextNode();
+    }
+
+    return level;
+  }
+
+  void Print() {
+    std::cout << "Tree height = " << GetHeight() << std::endl;
+    root->Print();
+    std::cout << "\n\n";
+  }
+
+  void Insert(const ex2::graduate::Info& info) {
+    auto dot = new Dot(info);
+    if (root == nullptr) {
+      Node* node = new Node();
+      node->InsertDot(dot);
+      root = node;
+      return;
+    }  // if()
+
+    Node* current = root;
+    Node* parents = nullptr;
+
+    while (current->NodeHasChildren()) {
+      // Horizontal search
+      for (int i = 0; i < current->GetDotSize(); ++i) {
+        if (current->GetDotInNode(i)->GetDotInfo().school_name ==
+            dot->GetDotInfo().school_name) {
+          current->GetDotInNode(i)->Insert(dot);
+          while (current->HasParent()) {
+            current = current->GetParent();
+          }
+          this->root = current;
+          return;
+        }  // if
+      }  // for
+
+      if (current->GetDotSize() == 1) {
+        if (dot->GetDotInfo().school_name <
+            current->GetDotInNode(0)->GetDotInfo().school_name) {
+          current = current->GetChildrenAt(0);
+        }
+
+        else {
+          current = current->GetChildrenAt(1);
+        }
+      }
+
+      else if (current->GetDotSize() == 2) {
+        if (dot->GetDotInfo().school_name <
+            current->GetDotInNode(0)->GetDotInfo().school_name) {
+          current = current->GetChildrenAt(0);
+        }
+
+        else if (dot->GetDotInfo().school_name >
+                     current->GetDotInNode(0)->GetDotInfo().school_name &&
+                 dot->GetDotInfo().school_name <
+                     current->GetDotInNode(1)->GetDotInfo().school_name) {
+          current = current->GetChildrenAt(1);
+        }
+
+        else if (dot->GetDotInfo().school_name >
+                 current->GetDotInNode(1)->GetDotInfo().school_name) {
+          current = current->GetChildrenAt(2);
+        }
+      }
+    }
+
+    current->InsertDot(dot);
+    if (current->GetDotSize() == 3) current->SplitDot();
+    current->SortDot();
+    while (current->HasParent()) {
+      current = current->GetParent();
+    }
+    this->root = current;
+
+  }  // Insert()
+ private:
+  Node* root = nullptr;
+};
 
 class AvlTree {
  public:
@@ -327,11 +648,15 @@ class SearchTreeUtility {
         };
 
         while (not_ok_and_not_cancelled(result)) {
-          std::cout << std::format("\n### {} does not exist! ###\n\n",
-                                   file_name);
+          std::cout << std::format("\n### {} does not exist! ###\n", file_name);
 
           file_name = utils::ScanFileName(kInputPrefix, kInputSuffix);
           result = LoadFile(file_name);
+        }
+
+        if (result == StatusCode::kCancelled) [[unlikely]] {
+          std::cout << '\n';
+          break;
         }
 
         MakeTwoThreeTree();
@@ -346,8 +671,8 @@ class SearchTreeUtility {
         break;
       }
       default: {
+        std::cout << std::format("\nCommand does not exist!\n\n");
         return StatusCode::kUnimplemented;
-        std::cout << std::format("Command does not exist!\n\n");
       }
     }
     return StatusCode::kOk;
@@ -368,7 +693,15 @@ class SearchTreeUtility {
   }
 
   // TODO: implement trees
-  void MakeTwoThreeTree() {}
+  void MakeTwoThreeTree() {
+    auto* tree = new graduate::TwoThreeTree();
+    for (int i = 0; i < list_.size(); ++i) {
+      tree->Insert(list_[i]);
+    }
+
+    tree->Print();
+  }
+
   void MakeAvlTree() {
     graduate::AvlTree tree;
 
@@ -390,7 +723,7 @@ class SearchTreeUtility {
                                current.day_or_night_type, current.level,
                                current.student_amount);
     }
-    std::cout << '\n';
+    std::cout << "\n\n";
   }
 
  private:
