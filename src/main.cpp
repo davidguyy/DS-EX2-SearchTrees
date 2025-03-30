@@ -1,4 +1,4 @@
-// by 11227205 è³?è¨?äº?ä¹? ?????³å?? & 11027214 æ¥?ç¢????.
+// by 11227205 è³‡è¨ŠäºŒä¹™ åŠ‰è‡³å˜‰ & 11027214 æ¥Šç¢•è.
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -300,7 +300,8 @@ class AvlTree {
     }
     return HeightCheck(ptr->left) - HeightCheck(ptr->right);
   }
-
+  
+ private:
   NodePointer root_ = nullptr;
 };
 
