@@ -700,6 +700,7 @@ class SearchTreeUtility {
     auto root_data = tree.GetRootData();
 
     std::cout << std::format("Tree height = {}\n", tree.GetRootHeight());
+    
     PrintRoot(root_data);
   }
 
