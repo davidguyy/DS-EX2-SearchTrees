@@ -180,7 +180,8 @@ class AvlTree {
   };
   using NodePointer = Node*;
 
-  [[nodiscard]] NodePointer MakeNode(const int data, const std::string& key) {
+  [[nodiscard]] static NodePointer MakeNode(const int data,
+                                            const std::string& key) {
     return new Node{{data}, key};
   }
 
@@ -203,51 +204,48 @@ class AvlTree {
 
   void Clear() noexcept { Clear(root_); }
 
-  void insert(const Info& val) { root_ = insert(root_, val); }
+  void Insert(const Info& val) { root_ = Insert(root_, val); }
 
-  NodePointer insert(NodePointer node, const Info& val) {
+  static NodePointer Insert(const NodePointer node, const Info& val) {
     const auto& key = val.department_name;
 
-    if (!node) {
+    if (!node) [[unlikely]] {
       return MakeNode(val.serial_number, key);
     }
 
     if (key < node->key) {
-      node->left = insert(node->left, val);
+      node->left = Insert(node->left, val);
     } else if (key > node->key) {
-      node->right = insert(node->right, val);
+      node->right = Insert(node->right, val);
     } else {
       node->data.push_back(val.serial_number);
       return node;
     }
 
-    node->height =
-        std::max(HeightCheck(node->left), HeightCheck(node->right)) + 1;
+    node->height = MaxHeight(node);
 
-    const int balance = GetBalanceFactor(node);
+    const int balance_factor = GetBalanceFactor(node);
 
-    if (balance > 1) {
+    if (balance_factor > 1) {
       if (key < node->left->key) {
         return RightRotate(node);
-      } else if (key > node->left->key) {
+      } else {
         node->left = LeftRotate(node->left);
         return RightRotate(node);
       }
-    } else if (balance < -1) {
+    } else if (balance_factor < -1) {
       if (key > node->right->key) {
         return LeftRotate(node);
-      } else if (key < node->right->key) {
+      } else {
         node->right = RightRotate(node->right);
         return LeftRotate(node);
       }
     }
-    
+
     return node;
   }
 
-  int GetRootHeight() const {
-    return HeightCheck(root_);
-  }
+  int GetRootHeight() const { return HeightCheck(root_); }
 
   const std::vector<int> GetRoot() const { return root_->data; }
 
@@ -261,46 +259,51 @@ class AvlTree {
     }
   }
 
-  static int HeightCheck(const NodePointer ptr) {
+  static int HeightCheck(const NodePointer ptr) noexcept {
     if (!ptr) {
       return 0;
     }
     return ptr->height;
   }
 
-  NodePointer LeftRotate(NodePointer ptr) {
-    NodePointer right = ptr->right;
-    NodePointer right_left = right->left;
-
-    right->left = ptr;
-    ptr->right = right_left;
-
-    ptr->height = std::max(HeightCheck(ptr->left), HeightCheck(ptr->right)) + 1;
-    right->height = std::max(HeightCheck(right->left), HeightCheck(right->right)) + 1;
-
-    return right;
-  }
-
-  NodePointer RightRotate(NodePointer ptr) {
-    NodePointer left = ptr->left;
-    NodePointer left_right = left->right;
-
-    left->right = ptr;
-    ptr->left = left_right;
-
-    ptr->height = std::max(HeightCheck(ptr->left), HeightCheck(ptr->right)) + 1;
-    left->height = std::max(HeightCheck(left->left), HeightCheck(left->right)) + 1;
-
-    return left;
+  static int MaxHeight(const NodePointer ptr) noexcept {
+    assert(ptr);
+    return std::max(HeightCheck(ptr->left), HeightCheck(ptr->right)) + 1;
   }
 
   static int GetBalanceFactor(const NodePointer ptr) {
-    if (!ptr) {
-      return 0;
-    }
+    assert(ptr);
     return HeightCheck(ptr->left) - HeightCheck(ptr->right);
   }
-  
+
+  static NodePointer LeftRotate(const NodePointer ptr) {
+    assert(ptr);
+    NodePointer right_child = ptr->right;
+    NodePointer right_child_left_sub_tree = right_child->left;
+
+    right_child->left = ptr;
+    ptr->right = right_child_left_sub_tree;
+
+    ptr->height = MaxHeight(ptr);
+    right_child->height = MaxHeight(right_child);
+
+    return right_child;
+  }
+
+  static NodePointer RightRotate(const NodePointer ptr) {
+    assert(ptr);
+    NodePointer left_child = ptr->left;
+    NodePointer left_child_right_sub_tree = left_child->right;
+
+    left_child->right = ptr;
+    ptr->left = left_child_right_sub_tree;
+
+    ptr->height = MaxHeight(ptr);
+    left_child->height = MaxHeight(left_child);
+
+    return left_child;
+  }
+
  private:
   NodePointer root_ = nullptr;
 };
@@ -369,12 +372,12 @@ class SearchTreeUtility {
   void MakeAvlTree() {
     graduate::AvlTree tree;
 
-    auto insert = [&tree](const graduate::Info& val) { tree.insert(val); };
+    auto insert = [&tree](const graduate::Info& val) { tree.Insert(val); };
 
     std::ranges::for_each(list_, insert);
 
     auto root_data = tree.GetRoot();
-    
+
     std::cout << std::format("Tree height = {}\n", tree.GetRootHeight());
     PrintRoot(root_data);
   }
