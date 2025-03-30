@@ -6,7 +6,6 @@
 #include <format>
 #include <fstream>
 #include <iostream>
-#include <sstream>
 
 // DC doesn't support it as of 2025/3/28 :(
 // #include <print>
@@ -60,17 +59,6 @@ std::vector<std::string_view> Split(const std::string_view string,
   std::vector<std::string_view> tokens;
   for (auto&& token : std::views::split(string, delimiter)) {
     tokens.push_back(static_cast<std::string_view>(token));
-  }
-  return tokens;
-}
-
-std::vector<std::string> Split(std::string&& line,
-                               const char delimiter) {
-  std::vector<std::string> tokens;
-  std::string token;
-  std::stringstream ss{std::move(line)};
-  while (std::getline(ss, token, delimiter)) {
-    tokens.push_back(std::move(token));
   }
   return tokens;
 }
@@ -136,7 +124,7 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
 
   int serial_number = 0;
   auto make_info =
-      [&serial_number](std::vector<std::string_view>&& tokens) -> Info {
+      [&serial_number](const std::vector<std::string_view>& tokens) -> Info {
     enum TokensTable : size_t {
       kSchoolId = 0,
       kSchoolName,
@@ -173,7 +161,7 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
 
   while (std::getline(file, line)) {
     utils::EraseCommaAndQuotation(line);
-    data.push_back(make_info(utils::Split(std::move(line), '\t')));
+    data.push_back(make_info(utils::Split(line, kDelimiter)));
   }
 
   if (data.empty()) [[unlikely]] {
