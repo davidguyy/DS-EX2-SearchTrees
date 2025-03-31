@@ -380,10 +380,10 @@ class TwoThreeTree {
     std::vector<int> results;
     for (const auto& i : root_data) {
       for (auto j = i; j; j = j->next) {
-        
         results.insert(results.begin(), j->data.begin(), j->data.end());
       }
     }
+    std::ranges::sort(results);
     return results;
   }
 
