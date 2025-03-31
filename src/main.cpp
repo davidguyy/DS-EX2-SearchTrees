@@ -172,34 +172,10 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
   return data;
 }
 
-class Dot {
- public:
-  explicit Dot(Info info) {
-    this->info = std::move(info);
-    next = nullptr;
-  }  // Dot
-
-  ex2::graduate::Info GetDotInfo() { return info; }
-
-  void PrintSingle(int& num) {
-    std::cout << ++num << ": ";
-    std::cout << "[" << info.serial_number << "] ";
-    std::cout << info.school_name << ", ";
-    std::cout << info.department_name << ", ";
-    std::cout << info.day_or_night_type << ", ";
-    std::cout << info.level << ", ";
-    std::cout << info.student_amount;
-    std::cout << "\n";
-  }
-
-  void Print(int& num) {
-    Dot* current = this;
-    while (current->next != nullptr) {
-      current->PrintSingle(num);
-      current = current->next;
-    }
-
-    current->PrintSingle(num);
+struct Dot {
+  Dot(const Info& val) {
+    data = {val.serial_number};
+    key = val.school_name;
   }
 
   void Insert(Dot* dot) {
@@ -211,20 +187,13 @@ class Dot {
     current->next = dot;
   }
 
- private:
-  Info info;
-  Dot* next;  // record the same dot(school)
+  std::vector<int> data;
+  std::string key;
+  Dot* next = nullptr;  // record the same dot(school)
 };
 
 class Node {
  public:
-  void Print() const {
-    int num = 0;
-    for (int i = 0; i < dots.size(); ++i) {
-      dots[i]->Print(num);
-    }
-  }
-
   Dot* GetDotInNode(int index) {
     if (index > dots.size()) return nullptr;
     return dots[index];
@@ -253,8 +222,8 @@ class Node {
     if (childs.size() == 0 || childs.size() == 1) return;
     for (int i = 0; i < childs.size() - 1; ++i) {
       for (int j = 0; j < childs.size() - i - 1; ++j) {
-        if (childs[j]->GetDotInNode(0)->GetDotInfo().school_name >
-            childs[j + 1]->GetDotInNode(0)->GetDotInfo().school_name) {
+        if (childs[j]->GetDotInNode(0)->key >
+            childs[j + 1]->GetDotInNode(0)->key) {
           Node* temp = childs[j];
           childs[j] = childs[j + 1];
           childs[j + 1] = temp;
@@ -275,8 +244,7 @@ class Node {
 
     for (int i = 0; i < dots.size() - 1; ++i) {
       for (int j = 0; j < dots.size() - i - 1; ++j) {
-        if (dots[j]->GetDotInfo().school_name >
-            dots[j + 1]->GetDotInfo().school_name) {
+        if (dots[j]->key > dots[j + 1]->key) {
           Dot* temp = dots[j];
           dots[j] = dots[j + 1];
           dots[j + 1] = temp;
@@ -303,7 +271,7 @@ class Node {
 
   void InsertDot(Dot* dot) {
     for (int i = 0; i < dots.size(); ++i) {
-      if (dots[i]->GetDotInfo().school_name == dot->GetDotInfo().school_name) {
+      if (dots[i]->key == dot->key) {
         dots[i]->Insert(dot);
         return;
       }
@@ -382,6 +350,10 @@ class Node {
 
   }  // SplitDot()
 
+  const std::vector<Dot*> GetDots() const {
+    return dots;
+  }
+
  private:
   std::vector<Dot*> dots;
   Node* parent = nullptr;
@@ -403,10 +375,16 @@ class TwoThreeTree {
     return level;
   }
 
-  void Print() {
-    std::cout << "Tree height = " << GetHeight() << std::endl;
-    root->Print();
-    std::cout << "\n\n";
+  const std::vector<int> GetRootData() const {
+    auto root_data = root->GetDots();
+    std::vector<int> results;
+    for (const auto& i : root_data) {
+      for (auto j = i; j; j = j->next) {
+        
+        results.insert(results.begin(), j->data.begin(), j->data.end());
+      }
+    }
+    return results;
   }
 
   void Insert(const ex2::graduate::Info& info) {
@@ -424,8 +402,8 @@ class TwoThreeTree {
     while (current->NodeHasChildren()) {
       // Horizontal search
       for (int i = 0; i < current->GetDotSize(); ++i) {
-        if (current->GetDotInNode(i)->GetDotInfo().school_name ==
-            dot->GetDotInfo().school_name) {
+        if (current->GetDotInNode(i)->key ==
+            dot->key) {
           current->GetDotInNode(i)->Insert(dot);
           while (current->HasParent()) {
             current = current->GetParent();
@@ -436,8 +414,8 @@ class TwoThreeTree {
       }  // for
 
       if (current->GetDotSize() == 1) {
-        if (dot->GetDotInfo().school_name <
-            current->GetDotInNode(0)->GetDotInfo().school_name) {
+        if (dot->key <
+            current->GetDotInNode(0)->key) {
           current = current->GetChildrenAt(0);
         }
 
@@ -447,20 +425,20 @@ class TwoThreeTree {
       }
 
       else if (current->GetDotSize() == 2) {
-        if (dot->GetDotInfo().school_name <
-            current->GetDotInNode(0)->GetDotInfo().school_name) {
+        if (dot->key <
+            current->GetDotInNode(0)->key) {
           current = current->GetChildrenAt(0);
         }
 
-        else if (dot->GetDotInfo().school_name >
-                     current->GetDotInNode(0)->GetDotInfo().school_name &&
-                 dot->GetDotInfo().school_name <
-                     current->GetDotInNode(1)->GetDotInfo().school_name) {
+        else if (dot->key >
+                     current->GetDotInNode(0)->key &&
+                 dot->key <
+                     current->GetDotInNode(1)->key) {
           current = current->GetChildrenAt(1);
         }
 
-        else if (dot->GetDotInfo().school_name >
-                 current->GetDotInNode(1)->GetDotInfo().school_name) {
+        else if (dot->key >
+                 current->GetDotInNode(1)->key) {
           current = current->GetChildrenAt(2);
         }
       }
@@ -690,7 +668,9 @@ class SearchTreeUtility {
     for (int i = 0; i < list_.size(); ++i) {
       tree.Insert(list_[i]);
     }
-    tree.Print();
+
+    std::cout << std::format("Tree height = {}\n", tree.GetHeight());
+    PrintRoot(tree.GetRootData());
   }
 
   void MakeAvlTree() {
