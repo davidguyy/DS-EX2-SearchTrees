@@ -187,7 +187,7 @@ struct Dot {
     current->next = dot;
   }
 
-  std::vector<int> data;
+  int data;
   std::string key;
   Dot* next = nullptr;  // record the same dot(school)
 };
@@ -375,12 +375,13 @@ class TwoThreeTree {
     return level;
   }
 
+  // least complex 2-3 tree method
   const std::vector<int> GetRootData() const {
     auto root_data = root->GetDots();
     std::vector<int> results;
     for (const auto& i : root_data) {
       for (auto j = i; j; j = j->next) {
-        results.insert(results.begin(), j->data.begin(), j->data.end());
+        results.insert(results.begin(), j->data);
       }
     }
     std::ranges::sort(results);
