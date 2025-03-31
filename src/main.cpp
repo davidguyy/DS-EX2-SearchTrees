@@ -686,13 +686,11 @@ class SearchTreeUtility {
 
   // TODO: implement trees
   void MakeTwoThreeTree() {
-    auto* tree = new graduate::TwoThreeTree();
+    graduate::TwoThreeTree tree;
     for (int i = 0; i < list_.size(); ++i) {
-      tree->Insert(list_[i]);
+      tree.Insert(list_[i]);
     }
-    tree->Print();
-
-    delete tree;
+    tree.Print();
   }
 
   void MakeAvlTree() {
