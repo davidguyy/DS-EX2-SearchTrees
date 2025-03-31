@@ -55,13 +55,11 @@ constexpr std::string_view kPrompt =
 
 namespace utils {
 
-std::vector<std::string_view> Split(const std::string_view string,
-                                    const std::string_view delimiter) {
-  std::vector<std::string_view> tokens;
-  for (auto&& token : std::views::split(string, delimiter)) {
-    tokens.push_back(static_cast<std::string_view>(token));
-  }
-  return tokens;
+std::vector<std::string_view> StrSplit(std::string_view string,
+                                    std::string_view delimiter) {
+  auto vec = string | std::ranges::views::split(delimiter);
+
+  return std::vector<std::string_view>{vec.begin(), vec.end()};
 }
 
 void EraseCommaAndQuotation(std::string& s) {
@@ -162,7 +160,7 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
 
   while (std::getline(file, line)) {
     utils::EraseCommaAndQuotation(line);
-    data.push_back(make_info(utils::Split(line, kDelimiter)));
+    data.push_back(make_info(utils::StrSplit(line, kDelimiter)));
   }
 
   if (data.empty()) [[unlikely]] {
