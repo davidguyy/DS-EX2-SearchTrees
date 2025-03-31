@@ -6,6 +6,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <span>
 
 // DC doesn't support it as of 2025/3/28 :(
 // #include <print>
@@ -495,6 +496,9 @@ class AvlTree {
   }
 
   AvlTree() = default;
+  AvlTree(const std::span<Info>& range) {
+    std::ranges::for_each(range, [this](const Info& v) { Insert(v); });
+  }
 
   AvlTree(const AvlTree&) = delete;
   AvlTree& operator=(const AvlTree&) = delete;
@@ -686,21 +690,18 @@ class SearchTreeUtility {
     for (int i = 0; i < list_.size(); ++i) {
       tree->Insert(list_[i]);
     }
-
     tree->Print();
+
+    delete tree;
   }
 
   void MakeAvlTree() {
-    graduate::AvlTree tree;
-
-    auto insert = [&tree](const graduate::Info& val) { tree.Insert(val); };
-
-    std::ranges::for_each(list_, insert);
+    graduate::AvlTree tree = {list_};
 
     auto root_data = tree.GetRootData();
 
     std::cout << std::format("Tree height = {}\n", tree.GetRootHeight());
-    
+
     PrintRoot(root_data);
   }
 
