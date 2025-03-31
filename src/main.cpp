@@ -187,6 +187,16 @@ struct Dot {
     current->next = dot;
   }
 
+  ~Dot() noexcept { Clear(next); }
+
+  void Clear(Dot*& ptr) noexcept {
+    if (ptr) {
+      Clear(ptr->next);
+      delete ptr;
+      ptr = nullptr;
+    }
+  }
+
   int data;
   std::string key;
   Dot* next = nullptr;  // record the same dot(school)
@@ -350,8 +360,20 @@ class Node {
 
   }  // SplitDot()
 
-  const std::vector<Dot*> GetDots() const {
-    return dots;
+  const std::vector<Dot*> GetDots() const { return dots; }
+
+  ~Node() noexcept {
+    auto delete_dot = [](Dot*& ptr) {
+      delete ptr;
+      ptr = nullptr;
+    };
+    auto delete_node = [](Node*& ptr) {
+      delete ptr;
+      ptr = nullptr;
+    };
+
+    std::ranges::for_each(dots, delete_dot);
+    std::ranges::for_each(childs, delete_node);
   }
 
  private:
@@ -388,6 +410,18 @@ class TwoThreeTree {
     return results;
   }
 
+  TwoThreeTree(const std::span<Info>& range) {
+    auto insert = [this](const Info& val) { Insert(val); };
+
+    std::ranges::for_each(range, insert);
+  }
+
+  // remove copy constructor/assignment because we didn't implement deep copy :/
+  TwoThreeTree(const TwoThreeTree&) = delete;
+  TwoThreeTree& operator=(const TwoThreeTree&) = delete;
+
+  ~TwoThreeTree() noexcept { delete root; }
+
   void Insert(const ex2::graduate::Info& info) {
     auto dot = new Dot(info);
     if (root == nullptr) {
@@ -403,8 +437,7 @@ class TwoThreeTree {
     while (current->NodeHasChildren()) {
       // Horizontal search
       for (int i = 0; i < current->GetDotSize(); ++i) {
-        if (current->GetDotInNode(i)->key ==
-            dot->key) {
+        if (current->GetDotInNode(i)->key == dot->key) {
           current->GetDotInNode(i)->Insert(dot);
           while (current->HasParent()) {
             current = current->GetParent();
@@ -415,8 +448,7 @@ class TwoThreeTree {
       }  // for
 
       if (current->GetDotSize() == 1) {
-        if (dot->key <
-            current->GetDotInNode(0)->key) {
+        if (dot->key < current->GetDotInNode(0)->key) {
           current = current->GetChildrenAt(0);
         }
 
@@ -426,20 +458,16 @@ class TwoThreeTree {
       }
 
       else if (current->GetDotSize() == 2) {
-        if (dot->key <
-            current->GetDotInNode(0)->key) {
+        if (dot->key < current->GetDotInNode(0)->key) {
           current = current->GetChildrenAt(0);
         }
 
-        else if (dot->key >
-                     current->GetDotInNode(0)->key &&
-                 dot->key <
-                     current->GetDotInNode(1)->key) {
+        else if (dot->key > current->GetDotInNode(0)->key &&
+                 dot->key < current->GetDotInNode(1)->key) {
           current = current->GetChildrenAt(1);
         }
 
-        else if (dot->key >
-                 current->GetDotInNode(1)->key) {
+        else if (dot->key > current->GetDotInNode(1)->key) {
           current = current->GetChildrenAt(2);
         }
       }
@@ -516,25 +544,7 @@ class AvlTree {
 
     node->height = MaxHeight(node);
 
-    const int balance_factor = GetBalanceFactor(node);
-
-    if (balance_factor > 1) {
-      if (key < node->left->key) {
-        return RightRotate(node);
-      } else {
-        node->left = LeftRotate(node->left);
-        return RightRotate(node);
-      }
-    } else if (balance_factor < -1) {
-      if (key > node->right->key) {
-        return LeftRotate(node);
-      } else {
-        node->right = RightRotate(node->right);
-        return LeftRotate(node);
-      }
-    }
-
-    return node;
+    return Rotate(node, key);
   }
 
   int GetRootHeight() const { return HeightCheck(root_); }
@@ -594,6 +604,27 @@ class AvlTree {
     left_child->height = MaxHeight(left_child);
 
     return left_child;
+  }
+
+  static NodePointer Rotate(const NodePointer node, std::string_view key) {
+    const int balance_factor = GetBalanceFactor(node);
+
+    if (balance_factor > 1) {
+      if (key < node->left->key) {
+        return RightRotate(node);
+      } else {
+        node->left = LeftRotate(node->left);
+        return RightRotate(node);
+      }
+    } else if (balance_factor < -1) {
+      if (key > node->right->key) {
+        return LeftRotate(node);
+      } else {
+        node->right = RightRotate(node->right);
+        return LeftRotate(node);
+      }
+    }
+    return node;
   }
 
  private:
@@ -665,10 +696,7 @@ class SearchTreeUtility {
 
   // TODO: implement trees
   void MakeTwoThreeTree() {
-    graduate::TwoThreeTree tree;
-    for (int i = 0; i < list_.size(); ++i) {
-      tree.Insert(list_[i]);
-    }
+    graduate::TwoThreeTree tree = {list_};
 
     std::cout << std::format("Tree height = {}\n", tree.GetHeight());
     PrintRoot(tree.GetRootData());
@@ -677,11 +705,8 @@ class SearchTreeUtility {
   void MakeAvlTree() {
     graduate::AvlTree tree = {list_};
 
-    auto root_data = tree.GetRootData();
-
     std::cout << std::format("Tree height = {}\n", tree.GetRootHeight());
-
-    PrintRoot(root_data);
+    PrintRoot(tree.GetRootData());
   }
 
   void PrintRoot(const std::vector<int>& range) const {
