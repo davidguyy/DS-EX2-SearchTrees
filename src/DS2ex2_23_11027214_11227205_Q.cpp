@@ -488,33 +488,9 @@ class TwoThreeTree {
     return results;
   }
 
-  std::vector<int> TraverseAll() const {
-    Node* current = root;
-    std::vector<int> result;
-
-    if (current == root && !current->NodeHasChildren()) {
-      return GetData(root);
-    }  // if()
-
-    while (current->NodeHasChildren()) {
-      if (current == root) {
-        auto vec = GetData(current);
-        result.insert(result.begin(), vec.begin(), vec.end());
-      }  // if()
-
-      current = current->GetNextNode();
-      for (int i = 0; i < current->GetParent()->GetChildrenSize(); i++) {
-        current = current->GetParent()->GetChildrenAt(i);
-        auto vec = GetData(current);
-        result.insert(result.begin(), vec.begin(),
-                      vec.end());
-
-      }  // for()
-
-      // 把current指回到這層的最左邊兄弟
-      current = current->GetParent()->GetChildrenAt(0);
-    }  // while(node有小孩)
-
+  std::vector<int> TraverseAll() {
+    auto result = GetData(root);
+    Traverse(root, result);
     return result;
   }
 
@@ -589,6 +565,16 @@ class TwoThreeTree {
 
   }  // Insert()
  private:
+  void Traverse(Node* node, std::vector<int>& results) {
+    if (!node->NodeHasChildren()) {
+      return;
+    }
+    for (int i = 0; i < node->GetChildrenSize(); ++i) {
+      Traverse(node->GetChildrenAt(i), results);
+      auto vec = GetData(node->GetChildrenAt(i));
+      results.insert(results.begin(), vec.begin(), vec.end());
+    }
+  }
   Node* root = nullptr;
 };
 
