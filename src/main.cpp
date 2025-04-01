@@ -50,8 +50,9 @@ constexpr std::string_view kPrompt =
     "* 0. QUIT                  *\n"
     "* 1. Build 2-3 tree        *\n"
     "* 2. Build AVL tree        *\n"
+    "* 3. Intersection Query    *\n"
     "*************************************\n"
-    "Input a choice(0, 1, 2): ";
+    "Input a choice(0, 1, 2, 3): ";
 
 namespace utils {
 
@@ -413,11 +414,22 @@ class TwoThreeTree {
 
     std::ranges::for_each(range, insert);
   }
+  TwoThreeTree() = default;
+
+  void Insert(const std::span<Info>& range) {
+    auto insert = [this](const Info& val) { Insert(val); };
+
+    std::ranges::for_each(range, insert);
+  }
 
   // remove copy constructor/assignment because we didn't implement deep copy :/
   TwoThreeTree(const TwoThreeTree&) = delete;
   TwoThreeTree& operator=(const TwoThreeTree&) = delete;
 
+  void Clear() noexcept {
+    delete root;
+    root = nullptr;
+  }
   ~TwoThreeTree() noexcept { delete root; }
 
   void Insert(const ex2::graduate::Info& info) {
@@ -521,6 +533,10 @@ class AvlTree {
   ~AvlTree() noexcept { Clear(root_); }
 
   void Clear() noexcept { Clear(root_); }
+
+  void Insert(const std::span<Info>& range) {
+    std::ranges::for_each(range, [this](const Info& v) { Insert(v); });
+  }
 
   void Insert(const Info& val) { root_ = Insert(root_, val); }
 
@@ -670,6 +686,9 @@ class SearchTreeUtility {
         }
         break;
       }
+      case 3: {
+        break;
+      }
       default: {
         std::cout << std::format("\nCommand does not exist!\n\n");
         return StatusCode::kUnimplemented;
@@ -694,20 +713,26 @@ class SearchTreeUtility {
 
   // TODO: implement trees
   void MakeTwoThreeTree() {
-    graduate::TwoThreeTree tree = {list_};
+    two_three_.Clear();
+    two_three_.Insert(list_);
 
-    std::cout << std::format("Tree height = {}\n", tree.GetHeight());
-    PrintRoot(tree.GetRootData());
+    std::cout << std::format("Tree height = {}\n", two_three_.GetHeight());
+    PrintNode(two_three_.GetRootData());
   }
 
   void MakeAvlTree() {
-    graduate::AvlTree tree = {list_};
+    avl_.Clear();
+    avl_.Insert(list_);
 
-    std::cout << std::format("Tree height = {}\n", tree.GetRootHeight());
-    PrintRoot(tree.GetRootData());
+    std::cout << std::format("Tree height = {}\n", avl_.GetRootHeight());
+    PrintNode(avl_.GetRootData());
   }
 
-  void PrintRoot(const std::vector<int>& range) const {
+  void SearchIntersection() {
+
+  }
+
+  void PrintNode(const std::vector<int>& range) const {
     for (int i = 0; i < range.size(); ++i) {
       const auto& current = list_[range[i] - 1];
       std::cout << std::format("{}: [{}] {}, {}, {}, {}, {}\n", i + 1, range[i],
@@ -720,6 +745,8 @@ class SearchTreeUtility {
 
  private:
   std::vector<graduate::Info> list_;
+  graduate::TwoThreeTree two_three_;
+  graduate::AvlTree avl_;
 };
 
 }  // namespace ex2
