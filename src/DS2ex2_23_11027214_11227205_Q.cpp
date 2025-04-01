@@ -404,11 +404,11 @@ class TwoThreeTree {
   std::vector<int> GetRootData() const { return GetData(root); }
 
   std::vector<int> GetData(const Node* node) const {
-    auto node_data = node->GetDots();
+    const auto& node_data = node->GetDots();
     std::vector<int> results;
     for (const auto& i : node_data) {
       for (auto j = i; j; j = j->next) {
-        results.insert(results.begin(), j->data);
+        results.push_back(j->data);
       }
     }
     std::ranges::sort(results);
@@ -437,21 +437,22 @@ class TwoThreeTree {
       return {};
     }  // if()
 
-    bool found = false;
     Node* current = root;
-    Node* parents = nullptr;
-    Dot* dot_result = nullptr;
+    std::vector<int> results;
 
-    while (current->NodeHasChildren()) {
-      // Horizontal search
-      for (int i = 0; i < current->GetDotSize(); ++i) {
-        if (current->GetDotInNode(i)->key == key) {
-          dot_result = current->GetDotInNode(i);
-          found = true;
-          ;
-          break;
-        }  // if
-      }  // for
+    while (current) {
+      auto& node_data = current->GetDots();
+      for (const auto& i : node_data) {
+        if (key == i->key) {
+          for (auto j = i; j; j = j->next) {
+            results.push_back(j->data);
+          }
+        }
+      }
+
+      if (!current->NodeHasChildren()) {
+        break;
+      }
 
       if (current->GetDotSize() == 1) {
         if (key < current->GetDotInNode(0)->key) {
@@ -477,11 +478,6 @@ class TwoThreeTree {
           current = current->GetChildrenAt(2);
         }
       }
-    }
-
-    std::vector<int> results;
-    for (auto j = dot_result; j; j = j->next) {
-      results.insert(results.begin(), j->data);
     }
 
     std::ranges::sort(results);
@@ -572,7 +568,7 @@ class TwoThreeTree {
     for (int i = 0; i < node->GetChildrenSize(); ++i) {
       Traverse(node->GetChildrenAt(i), results);
       auto vec = GetData(node->GetChildrenAt(i));
-      results.insert(results.begin(), vec.begin(), vec.end());
+      results.insert(results.end(), vec.begin(), vec.end());
     }
   }
   Node* root = nullptr;
@@ -653,13 +649,14 @@ class AvlTree {
     if (target_key == "*") {
       return Inorder();
     }
+
     NodePointer current = root_;
     bool key_found = false;
     while (current) {
       if (current->key < target_key) {
         current = current->right;
       } else if (current->key > target_key) {
-        current = current->right;
+        current = current->left;
       } else {
         key_found = true;
         break;
