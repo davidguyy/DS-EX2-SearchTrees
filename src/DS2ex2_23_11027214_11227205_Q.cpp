@@ -79,6 +79,22 @@ void EraseCommaAndQuotation(std::string& s) {
   }
 }
 
+template <typename T>
+std::expected<T, StatusCode> Scan() noexcept {
+  T val;
+  std::cin >> val;
+  if (std::cin.fail()) [[unlikely]] {
+    return StatusCode::kInvalidArgument;
+  }
+  return val;
+}
+
+template <typename T>
+std::expected<T, StatusCode> Scan(std::string_view prompt) noexcept {
+  std::cout << prompt;
+  return Scan<T>();
+}
+
 /// @return returns 0 if the scanned input cannot be converted to int
 int ScanInterger() {
   int input;
@@ -849,6 +865,8 @@ class SearchTreeUtility {
   // TODO: implement trees
   void MakeTwoThreeTree() {
     two_three_.Clear();
+    avl_.Clear();
+
     two_three_.Insert(list_);
 
     std::cout << std::format("Tree height = {}\n", two_three_.GetHeight());
@@ -856,9 +874,11 @@ class SearchTreeUtility {
   }
 
   void MakeAvlTree() {
-    avl_.Clear();
+    if (!avl_.IsEmpty()) {
+      std::cout << "### AVL tree has been built. ###\n";
+      avl_.Clear();
+    }
     avl_.Insert(list_);
-
     std::cout << std::format("Tree height = {}\n", avl_.GetRootHeight());
     PrintNode(avl_.GetRootData());
   }
@@ -918,6 +938,6 @@ int main() {
   for (StatusCode status = StatusCode::kUnknown;
        status != StatusCode::kCancelled;
        status = search_utility.ExecuteCommand(utils::ScanInterger())) {
-    std::cout << std::format(kPrompt);
+    std::cout << kPrompt;
   }
 }
