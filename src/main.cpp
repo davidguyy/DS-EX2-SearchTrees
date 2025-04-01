@@ -56,10 +56,16 @@ constexpr std::string_view kPrompt =
 namespace utils {
 
 std::vector<std::string_view> StrSplit(std::string_view string,
-                                    std::string_view delimiter) {
-  auto vec = string | std::ranges::views::split(delimiter);
+                                       std::string_view delimiter) {
+  auto tokens = string | std::ranges::views::split(delimiter);
 
-  return std::vector<std::string_view>{vec.begin(), vec.end()};
+  return std::vector<std::string_view>{tokens.begin(), tokens.end()};
+}
+
+int StrToInt(std::string_view str) noexcept {
+  int value = 0;
+  std::from_chars(str.data(), str.data() + str.size(), value);
+  return value;
 }
 
 void EraseCommaAndQuotation(std::string& s) {
@@ -140,18 +146,12 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
 
     ++serial_number;
 
-    auto string_view_to_int = [](std::string_view str) -> int {
-      int result = 0;
-      std::from_chars(str.data(), str.data() + str.size(), result);
-      return result;
-    };
-
     return Info{.school_name = std::string{tokens[kSchoolName]},
                 .department_name = std::string{tokens[kDepartmentName]},
                 .day_or_night_type = std::string{tokens[kDayOrNightType]},
                 .level = std::string{tokens[kLevel]},
                 .serial_number = serial_number,
-                .student_amount = string_view_to_int(tokens[kStudentAmount])};
+                .student_amount = utils::StrToInt(tokens[kStudentAmount])};
   };
 
   std::string line;
