@@ -2,11 +2,13 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdio>
 #include <expected>
 #include <format>
 #include <fstream>
 #include <iostream>
 #include <span>
+#include <stack>
 
 // DC doesn't support it as of 2025/3/28 :(
 // #include <print>
@@ -396,11 +398,15 @@ class TwoThreeTree {
     return level;
   }
 
+  bool IsEmpty() const { return root == nullptr; }
+
   // least complex 2-3 tree method
-  const std::vector<int> GetRootData() const {
-    auto root_data = root->GetDots();
+  std::vector<int> GetRootData() const { return GetData(root); }
+
+  std::vector<int> GetData(const Node* node) const {
+    auto node_data = node->GetDots();
     std::vector<int> results;
-    for (const auto& i : root_data) {
+    for (const auto& i : node_data) {
       for (auto j = i; j; j = j->next) {
         results.insert(results.begin(), j->data);
       }
@@ -420,6 +426,96 @@ class TwoThreeTree {
     auto insert = [this](const Info& val) { Insert(val); };
 
     std::ranges::for_each(range, insert);
+  }
+
+  std::vector<int> Search(std::string_view key) {
+    if (key == "*") {
+      return TraverseAll();
+    }
+    auto dot = root;
+    if (root == nullptr) {
+      return {};
+    }  // if()
+
+    bool found = false;
+    Node* current = root;
+    Node* parents = nullptr;
+    Dot* dot_result = nullptr;
+
+    while (current->NodeHasChildren()) {
+      // Horizontal search
+      for (int i = 0; i < current->GetDotSize(); ++i) {
+        if (current->GetDotInNode(i)->key == key) {
+          dot_result = current->GetDotInNode(i);
+          found = true;
+          ;
+          break;
+        }  // if
+      }  // for
+
+      if (current->GetDotSize() == 1) {
+        if (key < current->GetDotInNode(0)->key) {
+          current = current->GetChildrenAt(0);
+        }
+
+        else {
+          current = current->GetChildrenAt(1);
+        }
+      }
+
+      else if (current->GetDotSize() == 2) {
+        if (key < current->GetDotInNode(0)->key) {
+          current = current->GetChildrenAt(0);
+        }
+
+        else if (key > current->GetDotInNode(0)->key &&
+                 key < current->GetDotInNode(1)->key) {
+          current = current->GetChildrenAt(1);
+        }
+
+        else if (key > current->GetDotInNode(1)->key) {
+          current = current->GetChildrenAt(2);
+        }
+      }
+    }
+
+    std::vector<int> results;
+    for (auto j = dot_result; j; j = j->next) {
+      results.insert(results.begin(), j->data);
+    }
+
+    std::ranges::sort(results);
+    return results;
+  }
+
+  std::vector<int> TraverseAll() const {
+    Node* current = root;
+    std::vector<int> result;
+
+    if (current == root && !current->NodeHasChildren()) {
+      return GetData(root);
+
+    }  // if()
+
+    while (current->NodeHasChildren()) {
+      if (current == root) {
+        result.insert(result.begin(), GetData(current).begin(),
+                      GetData(current).end());
+      }  // if()
+
+      current = current->GetNextNode();
+      for (int i = 0; i < current->GetParent()->GetChildrenSize(); i++) {
+        current = current->GetParent()->GetChildrenAt(i);
+        result.insert(result.begin(), GetData(current).begin(),
+                      GetData(current).end());
+
+      }  // for()
+
+      // 把current指回到這層的最左邊兄弟
+      current = current->GetParent()->GetChildrenAt(0);
+    }  // while(node有小孩)
+
+    return result;
   }
 
   // remove copy constructor/assignment because we didn't implement deep copy :/
@@ -532,6 +628,8 @@ class AvlTree {
 
   ~AvlTree() noexcept { Clear(root_); }
 
+  bool IsEmpty() const { return root_ == nullptr; }
+
   void Clear() noexcept { Clear(root_); }
 
   void Insert(const std::span<Info>& range) {
@@ -564,6 +662,52 @@ class AvlTree {
   int GetRootHeight() const { return HeightCheck(root_); }
 
   const std::vector<int> GetRootData() const { return root_->data; }
+
+  const std::vector<int> Search(std::string_view target_key) {
+    if (target_key == "*") {
+      return Inorder();
+    }
+    NodePointer current = root_;
+    bool key_found = false;
+    while (current) {
+      if (current->key < target_key) {
+        current = current->right;
+      } else if (current->key > target_key) {
+        current = current->right;
+      } else {
+        key_found = true;
+        break;
+      }
+    }
+
+    if (!key_found) {
+      return {};
+    }
+    return current->data;
+  }
+
+  std::vector<int> Inorder() const {
+    if (!root_) {
+      return {};
+    }
+
+    std::vector<int> result;
+    std::stack<NodePointer> stack;
+    NodePointer current = root_;
+    while (current || !stack.empty()) {
+      if (current) {
+        stack.push(current);
+        current = current->left;
+      } else {
+        NodePointer previous = stack.top();
+        stack.pop();
+        result.insert(result.begin(), previous->data.begin(),
+                      previous->data.end());
+        current = previous->right;
+      }
+    }
+    return result;
+  }
 
  private:
   void Clear(NodePointer& current) noexcept {
@@ -682,11 +826,19 @@ class SearchTreeUtility {
         if (!list_.empty()) {
           MakeAvlTree();
         } else {
-          std::cout << std::format("### Choose 1 first. ###\n\n");
+          std::cout << "### Choose 1 first. ###\n\n";
         }
         break;
       }
       case 3: {
+        if (two_three_.IsEmpty()) {
+          std::cout << "### Choose 1 first. ###\n\n";
+          break;
+        } else if (avl_.IsEmpty()) {
+          std::cout << "### Choose 2 first. ###\n\n";
+          break;
+        }
+        SearchIntersection();
         break;
       }
       default: {
@@ -729,7 +881,28 @@ class SearchTreeUtility {
   }
 
   void SearchIntersection() {
+    auto school_name = ScanString(ScanOption::kScanSchoolName);
+    auto department_name = ScanString(ScanOption::kScanDepartmentName);
 
+    auto two_three_result = two_three_.Search(school_name);
+    auto avl_result = avl_.Search(department_name);
+
+    std::vector<int> out;
+    std::ranges::set_intersection(two_three_result, avl_result,
+                                  std::back_inserter(out));
+    PrintNode(out);
+  }
+
+  enum struct ScanOption { kScanSchoolName, kScanDepartmentName };
+  std::string ScanString(const ScanOption option) {
+    std::string result;
+    if (option == ScanOption::kScanSchoolName) {
+      std::cout << "Enter a college name to search [*]: ";
+    } else if (option == ScanOption::kScanDepartmentName) {
+      std::cout << "Enter a department name to search [*]: ";
+    }
+    std::cin >> result;
+    return result;
   }
 
   void PrintNode(const std::vector<int>& range) const {
