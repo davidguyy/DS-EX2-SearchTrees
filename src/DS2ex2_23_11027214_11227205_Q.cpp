@@ -1,20 +1,16 @@
 // by 11227205 資訊二乙 劉至嘉 & 11027214 楊碕萍.
+#define NDEBUG
+
 #include <algorithm>
 #include <cassert>
-#include <cstddef>
-#include <cstdio>
+#include <charconv>
 #include <expected>
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <ranges>
 #include <span>
 #include <stack>
-
-// DC doesn't support it as of 2025/3/28 :(
-// #include <print>
-
-#include <charconv>
-#include <ranges>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -127,6 +123,14 @@ struct Info {
   std::string level;
   int serial_number = 0;
   int student_amount = 0;
+
+  Info(const std::vector<std::string_view>& range, const int serial_number)
+      : school_name(range[1]),
+        department_name(range[3]),
+        day_or_night_type(range[4]),
+        level(range[5]),
+        serial_number(serial_number),
+        student_amount(utils::StrToInt(range[6])) {}
 };
 
 std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
@@ -146,46 +150,17 @@ std::expected<std::vector<Info>, ex2::StatusCode> MakeList(
 
   skip_first_x_lines(file, 3);
 
+  
   int serial_number = 0;
-  auto make_info =
-      [&serial_number](const std::vector<std::string_view>& tokens) -> Info {
-    enum TokensTable : size_t {
-      kSchoolId = 0,
-      kSchoolName,
-      kDepartmentId,
-      kDepartmentName,
-      kDayOrNightType,
-      kLevel,
-      kStudentAmount,
-      kTeacherAmount,
-      kGraduateAmount,
-      kCityName,
-      kSchoolType
-    };
-
-    ++serial_number;
-
-    return Info{.school_name = std::string{tokens[kSchoolName]},
-                .department_name = std::string{tokens[kDepartmentName]},
-                .day_or_night_type = std::string{tokens[kDayOrNightType]},
-                .level = std::string{tokens[kLevel]},
-                .serial_number = serial_number,
-                .student_amount = utils::StrToInt(tokens[kStudentAmount])};
-  };
-
   std::string line;
   std::vector<Info> data;
   constexpr std::string_view kDelimiter = "\t";
-
   while (std::getline(file, line)) {
     utils::EraseCommaAndQuotation(line);
-    data.push_back(make_info(utils::StrSplit(line, kDelimiter)));
+    ++serial_number;
+    data.emplace_back(utils::StrSplit(line, kDelimiter), serial_number);
   }
-
-  if (data.empty()) [[unlikely]] {
-    return std::unexpected{ex2::StatusCode::kFailedPrecondition};
-  }
-
+  
   return data;
 }
 
