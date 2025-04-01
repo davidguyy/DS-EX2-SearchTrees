@@ -494,20 +494,20 @@ class TwoThreeTree {
 
     if (current == root && !current->NodeHasChildren()) {
       return GetData(root);
-
     }  // if()
 
     while (current->NodeHasChildren()) {
       if (current == root) {
-        result.insert(result.begin(), GetData(current).begin(),
-                      GetData(current).end());
+        auto vec = GetData(current);
+        result.insert(result.begin(), vec.begin(), vec.end());
       }  // if()
 
       current = current->GetNextNode();
       for (int i = 0; i < current->GetParent()->GetChildrenSize(); i++) {
         current = current->GetParent()->GetChildrenAt(i);
-        result.insert(result.begin(), GetData(current).begin(),
-                      GetData(current).end());
+        auto vec = GetData(current);
+        result.insert(result.begin(), vec.begin(),
+                      vec.end());
 
       }  // for()
 
@@ -886,6 +886,9 @@ class SearchTreeUtility {
 
     auto two_three_result = two_three_.Search(school_name);
     auto avl_result = avl_.Search(department_name);
+
+    std::ranges::sort(two_three_result);
+    std::ranges::sort(avl_result);
 
     std::vector<int> out;
     std::ranges::set_intersection(two_three_result, avl_result,
